@@ -1,0 +1,177 @@
+import random
+import sys
+import pygame
+
+
+def draw_bg():
+    window.blit(bg, (bg_x, 0))
+    window.blit(bg, (bg_x + bg.get_width(), 0))
+
+
+def create_pipe():
+    random_pipe_pos = random.choice(pipe_height)
+    bottom_pipe = pipe_surface.get_rect(midtop=(430, random_pipe_pos))
+    top_pipe = pipe_surface.get_rect(midbottom=(430, random_pipe_pos - 200))
+    return bottom_pipe, top_pipe
+
+
+def draw_pipes(pipes):
+    for pipe in pipes:
+        if pipe.top >= 0:
+            window.blit(pipe_surface, pipe)
+        else:
+            flip_pipe = pygame.transform.flip(pipe_surface, False, True)
+            window.blit(flip_pipe, pipe)
+
+
+def move_pipes(pipes):
+    for pipe in pipes:
+        pipe.centerx -= speed
+    return pipes
+
+
+def check_collision(pipes):
+    for pipe in pipes:
+        if player_rect.colliderect(pipe):
+            return False
+    if player_rect.top <= -100 or player_rect.top >= 700:
+        return False
+    return True
+
+
+def rotate_player(player):
+    new_player = pygame.transform.rotozoom(player, -player_movement * 4, 1)
+    return new_player
+
+
+def player_animation():
+    new_player = player_frames[player_index]
+    new_player_rect = new_player.get_rect(center=(player_rect.centerx, player_rect.centery))
+    return new_player, new_player_rect
+
+
+def score_display(game_on):
+    if game_on:
+        score_surface = font1.render(str(int(score)), True, (255, 255, 255))
+        score_rect = score_surface.get_rect(center=(200, 100))
+        window.blit(score_surface, score_rect)
+    else:
+        score_surface = font2.render("Score: " + str(int(score)), True, (255, 255, 255))
+        score_rect = score_surface.get_rect(center=(200, 200))
+        window.blit(score_surface, score_rect)
+
+        high_score_surface = font1.render("High score: " + str(int(high_score)), True, (255, 255, 255))
+        high_score_rect = high_score_surface.get_rect(center=(200, 250))
+        window.blit(high_score_surface, high_score_rect)
+
+        high_score_surface = font3.render("FLAPPY ROCKET", True, (255, 255, 255))
+        high_score_rect = high_score_surface.get_rect(center=(200, 30))
+        window.blit(high_score_surface, high_score_rect)
+
+
+pygame.init()
+window = pygame.display.set_mode((400, 600))
+pygame.display.set_caption("Flappy Rocket")
+pygame.display.set_icon(pygame.image.load("_spaceship_.png"))
+clock = pygame.time.Clock()
+font1 = pygame.font.SysFont("Impact", 45)
+font2 = pygame.font.SysFont("Impact", 35)
+font3 = pygame.font.SysFont("Impact", 55)
+
+# game variables
+gravity = 0.25
+player_movement = 0
+speed = 3
+game_active = False
+score = 0
+high_score = 0
+
+player_animation3 = pygame.image.load("_spaceship_.png").convert_alpha()
+player_animation3 = pygame.transform.scale(player_animation3, (50, 50))
+player_animation3 = pygame.transform.rotate(player_animation3, -90)
+player_animation2 = pygame.image.load("_spaceship_1.png").convert_alpha()
+player_animation2 = pygame.transform.scale(player_animation2, (50, 50))
+player_animation2 = pygame.transform.rotate(player_animation2, -90)
+
+player_frames = [player_animation2, player_animation3]
+player_index = 0
+
+PLAYERJUMP = pygame.USEREVENT
+pygame.time.set_timer(PLAYERJUMP, 7)
+
+# ADDSCORE = pygame.USEREVENT
+# pygame.time.set_timer(ADDSCORE, 1800)
+
+player_surface = player_frames[player_index]
+player_rect = player_surface.get_rect(center=(50, 300))
+
+pipe_surface = pygame.image.load("pipe-green.png")
+pipe_surface = pygame.transform.scale(pipe_surface, (70, 500))
+pipe_list = []
+SPAWNPIPE = pygame.USEREVENT
+pygame.time.set_timer(SPAWNPIPE, 1800)
+pipe_height = [250, 300, 350, 400, 450, 500]
+
+bg = pygame.image.load("Background.png").convert()
+bg_x = 0
+
+while True:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            pygame.quit()
+            sys.exit()
+
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_ESCAPE:
+                pygame.quit()
+                sys.exit()
+            if event.key == pygame.K_SPACE and game_active:
+                player_movement = -7.5
+            if event.key == pygame.K_SPACE and game_active == False:
+                pipe_list.clear()
+                player_rect.center = (50, 300)
+                player_movement = -5
+                speed = 3
+                score = 0
+                game_active = True
+
+        if event.type == SPAWNPIPE:
+            pipe_list.extend(create_pipe())
+
+        if event.type == PLAYERJUMP:
+            if player_index < 1:
+                player_index += 1
+            else:
+                player_index = 0
+            player_surface, player_rect = player_animation()
+        # if event.type == ADDSCORE:
+        #     score += 1
+
+    window.fill((81, 120, 181))
+    bg_x -= speed / 4
+    draw_bg()
+    speed += 0.0006
+    if score > high_score:
+        high_score = score
+
+    if game_active:
+        # player
+        player_movement += gravity
+        rotated_player = rotate_player(player_surface)
+        player_rect.centery += player_movement
+        window.blit(rotated_player, player_rect)
+        game_active = check_collision(pipe_list)
+
+        # pipes
+        pipe_list = move_pipes(pipe_list)
+        draw_pipes(pipe_list)
+
+        score += 0.05
+
+    # background movement
+    if bg_x <= -400:
+        bg_x = 0
+
+    score_display(game_active)
+    pygame.display.update()
+    clock.tick(60)
